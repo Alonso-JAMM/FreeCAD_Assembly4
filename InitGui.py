@@ -93,6 +93,7 @@ class Assembly4Workbench(Workbench):
         #import DraftTools
         #import treeSelectionOverride as selectionOverride
         from solver.AddConstraints import AddEqualityConstraint  # Adds constraint to the Assembly
+        from solver.AddConstraints import AddFixConstraint       # Adds Fix constraint to the assembly
 
 
         # check whether the Fasteners workbench is installed
@@ -148,7 +149,8 @@ class Assembly4Workbench(Workbench):
                                 "Asm4_delVariable", 
                                 "Asm4_Animate", 
                                 "Asm4_updateAssembly",
-                                "Asm4_EqualityConstraint"]
+                                "Asm4_EqualityConstraint",
+                                "Asm4_FixConstraint"]
         self.appendMenu("&Assembly",itemsAssemblyMenu)
         # commands to appear in the Assembly4 toolbar
         itemsAssemblyToolbar = [ "Asm4_newPart", 
