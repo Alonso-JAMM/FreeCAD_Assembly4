@@ -84,6 +84,55 @@ class Equality:
                 xNames.append(comp[1])
 
 
+class Lock:
+    """ Lock a variable"""
+    def __init__(self, a, c):
+        self.a = a  # variable to lock
+        self.c = c  # set value
+
+    def eval(self, x):
+        return x[self.a] - self.c
+
+    @classmethod
+    def makeConstraint(cls, f, xNames, xList):
+        constraints = []
+        for comp in f.Components:
+            xName = f.Components[comp]["objName"]
+            xVal = None
+            xIndex = xNames.index(xName)
+            component = xName.split(".")[2]
+            placement = xName.split(".")[1]
+            c = f.Components[comp]["value"]
+
+            if placement == "Rotation":
+                c = c*pi/180
+                if component == "x":
+                    xVal = App.ActiveDocument.getObject(f.Object) \
+                                .Placement.Rotation.toEuler()[2] * pi/180
+                elif component == "y":
+                    xVal = App.ActiveDocument.getObject(f.Object) \
+                               .Placement.Rotation.toEuler()[1] * pi/180
+                elif component == "z":
+                    xVal = App.ActiveDocument.getObject(f.Object) \
+                               .Placement.Rotation.toEuler()[0] * pi/180
+            elif placement == "Base":
+                xVal = getattr(App.ActiveDocument.getObject(f.Object)
+                                  .Placement.Base, component)
+
+            if xList[xIndex] is None:
+                xList[xIndex] = xVal
+
+            constraints.append(cls(xIndex, c))
+        return constraints
+
+    @staticmethod
+    def getVariables(f, xNames):
+        for comp in f.Components:
+            objName = f.Components[comp]["objName"]
+            if objName not in xNames:
+                xNames.append(objName)
+
+
 class Fix:
     """ A variable is fixed to a value """
     def __init__(self, indexList, fixType):
@@ -108,6 +157,10 @@ class Fix:
         pxIndex = None
         pyIndex = None
         pzIndex = None
+        # quaternion representing the position of the reference
+        rpxIndex = None
+        rpyIndex = None
+        rpzIndex = None
         # quaternion representing the fix rotation
         fqrotxIndex = None
         fqrotyIndex = None
@@ -132,6 +185,9 @@ class Fix:
         pxIndex = self.indexList["Base_x"]["Object"]
         pyIndex = self.indexList["Base_y"]["Object"]
         pzIndex = self.indexList["Base_z"]["Object"]
+        rpxIndex = self.indexList["Base_x"]["Reference"]
+        rpyIndex = self.indexList["Base_y"]["Reference"]
+        rpzIndex = self.indexList["Base_z"]["Reference"]
         if self.indexList["Rotation_x"]["Enable"]:
             val = self.indexList["Rotation_x"]["FixVal"]
             fqrotx = HyperDualQuaternion(hdsin(val/2),
@@ -185,18 +241,19 @@ class Fix:
             fqbasezIndex = self.indexList["Base_z"]["Object"]
             fqbasez = x[fqbasezIndex]
 
-        rqx = HyperDualQuaternion(hdsin((x[rqrotxIndex]).real/2),
+        # .real
+        rqx = HyperDualQuaternion(hdsin((x[rqrotxIndex])/2),
                                   0,
                                   0,
-                                  hdcos((x[rqrotxIndex]).real/2))
+                                  hdcos((x[rqrotxIndex])/2))
         rqy = HyperDualQuaternion(0,
-                                  hdsin((x[rqrotyIndex]).real/2),
+                                  hdsin((x[rqrotyIndex])/2),
                                   0,
-                                  hdcos((x[rqrotyIndex]).real/2))
+                                  hdcos((x[rqrotyIndex])/2))
         rqz = HyperDualQuaternion(0,
                                   0,
-                                  hdsin((x[rqrotzIndex]).real/2),
-                                  hdcos((x[rqrotzIndex]).real/2))
+                                  hdsin((x[rqrotzIndex])/2),
+                                  hdcos((x[rqrotzIndex])/2))
         oqx = HyperDualQuaternion(hdsin(x[oqrotxIndex]/2),
                                   0,
                                   0,
@@ -213,18 +270,15 @@ class Fix:
         oq = oqz@oqy@oqx
         fqrot = fqrotz@fqroty@fqrotx
         p = HyperDualQuaternion(x[pxIndex], x[pyIndex], x[pzIndex], 0)
+        rp = HyperDualQuaternion(x[rpxIndex].real, x[rpyIndex].real, x[rpzIndex].real, 0)
         fqbase = HyperDualQuaternion(fqbasex, fqbasey, fqbasez, 0)
         if self.fixType == "Base":
-            result = rq**-1@p@rq - fqbase
-            print(fqbase)
-            print(result)
-            print(rq)
-            print(p)
+            result = rq**-1@(p-rp)@rq - fqbase
             return result.q0**2 + result.q1**2 + result.q2**2
         # First, fill up the rotation objects
         elif self.fixType == "Rotation":
-            result = fqrot**-1@rq**-1@oq
-            return result.q0**2 + result.q1**2 + result.q2**2
+            result = rq**-1@oq@fqrot**-1
+            return  result.q0**2 + result.q1**2 + result.q2**2
 
     @classmethod
     def makeConstraint(cls, f, xNames, xList):
@@ -335,6 +389,12 @@ class Fix:
                     indexList["Base_z"]["Reference"] = rIndex
                     indexList["Base_z"]["Enable"] = f.Components[component]["enable"]
                     indexList["Base_z"]["FixVal"] = f.Components[component]["value"]
+
+            # FreeCAD returns negative angles when they are larger than 180 degrees
+            if rVal < 0:
+                rVal = 2*pi + rVal
+            if xVal < 0:
+                xVal = 2*pi + xVal
 
             if xList[xIndex] is None:
                 xList[xIndex] = xVal

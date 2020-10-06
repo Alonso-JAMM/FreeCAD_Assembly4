@@ -2,7 +2,7 @@ from scipy.optimize import minimize
 import numpy as np
 import FreeCAD as App
 from .HyperDual import HyperDual
-from .Constraints import Equality, Fix
+from .Constraints import Equality, Fix, Lock
 
 
 class Solver:
@@ -80,6 +80,8 @@ def get_lists():
             Equality.getVariables(f, x_names)
         elif f.Type == "Fix_Constraint":
             Fix.getVariables(f, x_names)
+        elif f.Type == "Lock_Constraint":
+            Lock.getVariables(f, x_names)
 
     n = len(x_names)
     x_list = [None]*n
@@ -89,6 +91,8 @@ def get_lists():
             f_list.extend(Equality.makeConstraint(f, x_names, x_list))
         if f.Type == "Fix_Constraint":
             f_list.extend(Fix.makeConstraint(f, x_names, x_list))
+        if f.Type == "Lock_Constraint":
+            f_list.extend(Lock.makeConstraint(f, x_names, x_list))
     i = 0
     for x in x_list:
         new_grad = np.zeros(n)
