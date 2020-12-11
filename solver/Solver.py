@@ -19,7 +19,15 @@ class Solver:
 
         total = HyperDual(0, 0, 0)
         for i in range(len(self.f)):
-            total += self.f[i].eval(self.x)**2
+            if self.f[i].Ftype == "Fix":
+                if self.f[i].fixType == "Base":
+                    result = self.f[i].eval(self.x)
+                    total += result  # .q1**2 + result.q2**2 + result.q3**2
+                else:
+                    result = self.f[i].eval(self.x)
+                    total += result.q0**2 + result.q1**2 + result.q2**2
+            else:
+                total += self.f[i].eval(self.x)**2
 
         self.val = total
         self.current_x = x
@@ -66,38 +74,52 @@ class Solver:
 
 def get_lists():
     """
-    Gets 3 lists. A list containing the constraint functions. A list
-    containing the independent variables. And a list containing the
-    ids of the independent variables.
+    Gets the variables names and values as well as the functions
+    representing the constraints of the assembly.
+    Returns a dictionary containing 4 lists.
+    fList: contains the constraint functions.
+    xNames: contains the names of the variables.
+    xList: contains the current values of the variables.
+    xHD: contains the current values of the variables in
+    hyperdual form.
     """
-    f_list = []
-    x_list = []
-    x_names = []
-    x_hd = []   # List of hyper duals
-    # First we try to find the unique variables 
-    for f in App.ActiveDocument.Constraints.Group:
-        if f.Type == "Equality_Constraint":
-            Equality.getVariables(f, x_names)
-        elif f.Type == "Fix_Constraint":
-            Fix.getVariables(f, x_names)
-        elif f.Type == "Lock_Constraint":
-            Lock.getVariables(f, x_names)
+    # varData stores the variables names and values and the
+    # constraints functions
+    varData = {
+        "fList": [],
+        "xNames": [],
+        "xList": [],
+        "xHD": [],     # list of hyper duals
+    }
 
-    n = len(x_names)
-    x_list = [None]*n
-    initial_hess = np.zeros((n, n))
+    # begin by finding the variables
     for f in App.ActiveDocument.Constraints.Group:
         if f.Type == "Equality_Constraint":
-            f_list.extend(Equality.makeConstraint(f, x_names, x_list))
+            Equality.getVariables(f, varData)
+        elif f.Type == "Fix_Constraint":
+            Fix.getVariables(f, varData)
+        elif f.Type == "Lock_Constraint":
+            Lock.getVariables(f, varData)
+
+    # Then get the current variables values
+    n = len(varData["xNames"])
+    varData["xList"] = [None]*n
+    for f in App.ActiveDocument.Constraints.Group:
+        if f.Type == "Equality_Constraint":
+            Equality.makeConstraint(f, varData)
         if f.Type == "Fix_Constraint":
-            f_list.extend(Fix.makeConstraint(f, x_names, x_list))
+            Fix.makeConstraintBase(f, varData)
+            Fix.makeConstraintRotation(f, varData)
         if f.Type == "Lock_Constraint":
-            f_list.extend(Lock.makeConstraint(f, x_names, x_list))
+            Lock.makeConstraint(f, varData)
+
+    # Build the hyper dual number for base and rotation placements
+    initialHess = np.zeros((n, n))
     i = 0
-    for x in x_list:
-        new_grad = np.zeros(n)
-        new_grad[i] = 1
-        new_hd = HyperDual(x, new_grad, initial_hess)
-        x_hd.append(new_hd)
+    for x in varData["xList"]:
+        newGrad = np.zeros(n)
+        newGrad[i] = 1
+        newHD = HyperDual(x, newGrad, initialHess)
+        varData["xHD"].append(newHD)
         i += 1
-    return f_list, x_hd, x_names
+    return varData

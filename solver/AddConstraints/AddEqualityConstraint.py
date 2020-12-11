@@ -38,8 +38,43 @@ class EqualityPanel:
     def accept(self):
         obj1 = self.form.firstObjectList.selectedItems()[0].text()
         obj2 = self.form.secondObjectList.selectedItems()[0].text()
-        components = []
-        compStatus = []
+        components = {
+            "Base": {
+                "x": {
+                    "enable": False,
+                    "obj1Name": obj1 + ".Base.x",
+                    "obj2Name": obj2 + ".Base.x",
+                },
+                "y": {
+                    "enable": False,
+                    "obj1Name": obj1 + ".Base.y",
+                    "obj2Name": obj2 + ".Base.y",
+                },
+                "z": {
+                    "enable": False,
+                    "obj1Name": obj1 + ".Base.z",
+                    "obj2Name": obj2 + ".Base.z",
+                },
+
+            },
+            "Rotation": {
+                "x": {
+                    "enable": False,
+                    "obj1Name": obj1 + ".Rotation.x",
+                    "obj2Name": obj2 + ".Rotation.x",
+                },
+                "y": {
+                    "enable": False,
+                    "obj1Name": obj1 + ".Rotation.y",
+                    "obj2Name": obj2 + ".Rotation.y",
+                },
+                "z": {
+                    "enable": False,
+                    "obj1Name": obj1 + ".Rotation.z",
+                    "obj2Name": obj2 + ".Rotation.z",
+                },
+            },
+        }
         if not obj1 or not obj2:
             print("Select first and second objects")
             return
@@ -48,25 +83,25 @@ class EqualityPanel:
             return
         if self.form.xCheck.isChecked():
             # We want to set the x-coordinates of both objects equal
-            compStatus.append("Base_x")
+            components["Base"]["x"]["enable"] = True
         if self.form.yCheck.isChecked():
             # we want to set the y-coordinates of both objects equal
-            compStatus.append("Base_y")
+            components["Base"]["y"]["enable"] = True
         if self.form.zCheck.isChecked():
             # we want to set the z-coordinates of both objects equal
-            compStatus.append("Base_z")
+            components["Base"]["z"]["enable"] = True
         if self.form.xrotCheck.isChecked():
             # Set rotation about x-axis equal
-            compStatus.append("Rot_x")
+            components["Rotation"]["x"]["enable"] = True
         if self.form.yrotCheck.isChecked():
             # set rotation about y-axis equal
-            compStatus.append("Rot_y")
+            components["Rotation"]["y"]["enable"] = True
         if self.form.zrotCheck.isChecked():
             # Set rotation about z-axis equal
-            compStatus.append("Rot_z")
+            components["Rotation"]["z"]["enable"] = True
 
         newConstraint = App.ActiveDocument.addObject("App::FeaturePython", self.type)
-        EqualityConstraint(newConstraint, obj1, obj2, self.type, components, compStatus)
+        EqualityConstraint(newConstraint, obj1, obj2, self.type, components)
         Gui.Control.closeDialog()
         App.ActiveDocument.recompute()
 
@@ -89,7 +124,7 @@ class EqualityPanel:
 
 
 class EqualityConstraint():
-    def __init__(self, obj, obj1, obj2, constraintType, components, compStatus):
+    def __init__(self, obj, obj1, obj2, constraintType, components):
         obj.Proxy = self
         obj.addProperty("App::PropertyString", "Type", "", "", 1)
         obj.Type = constraintType
@@ -100,13 +135,18 @@ class EqualityConstraint():
         obj.addProperty("App::PropertyBool", "Base_x", "Placement")
         obj.addProperty("App::PropertyBool", "Base_y", "Placement")
         obj.addProperty("App::PropertyBool", "Base_z", "Placement")
-        obj.addProperty("App::PropertyBool", "Rot_x", "Placement")
-        obj.addProperty("App::PropertyBool", "Rot_y", "Placement")
-        obj.addProperty("App::PropertyBool", "Rot_z", "Placement")
+        obj.addProperty("App::PropertyBool", "Rotation_x", "Placement")
+        obj.addProperty("App::PropertyBool", "Rotation_y", "Placement")
+        obj.addProperty("App::PropertyBool", "Rotation_z", "Placement")
         obj.addProperty("App::PropertyPythonObject", "Components", "", "", 4)
-        obj.Components = []
-        for comp in compStatus:
-            setattr(obj, comp, True)
+        obj.Components = components
+        for compType in components:
+            for compAxis in components[compType]:
+                if not components[compType][compAxis]["enable"]:
+                    continue
+                # Name of the property to put the value
+                prop = compType + "_" + compAxis
+                setattr(obj, prop, True)    # Enable this constraint
         App.ActiveDocument.Constraints.addObject(obj)
 
     def onChanged(self, obj, prop):
@@ -114,17 +154,17 @@ class EqualityConstraint():
         components have changed and updates the components list when needed
         """
         if prop == "Base_x":
-            self.changeComponent(obj, prop, ".Base.x")
+            self.changeComponent(obj, prop, "Base_x")
         elif prop == "Base_y":
-            self.changeComponent(obj, prop, ".Base.y")
+            self.changeComponent(obj, prop, "Base_y")
         elif prop == "Base_z":
-            self.changeComponent(obj, prop, ".Base.z")
+            self.changeComponent(obj, prop, "Base_z")
         elif prop == "Rot_x":
-            self.changeComponent(obj, prop, ".Rotation.x")
+            self.changeComponent(obj, prop, "Rotation_x")
         elif prop == "Rot_y":
-            self.changeComponent(obj, prop, ".Rotation.y")
+            self.changeComponent(obj, prop, "Rotation_y")
         elif prop == "Rot_z":
-            self.changeComponent(obj, prop, ".Rotation.z")
+            self.changeComponent(obj, prop, "Rotation_z")
 
     @staticmethod
     def changeComponent(obj, prop, component):
@@ -137,23 +177,20 @@ class EqualityConstraint():
         component: the component we are interested. For example ".Base.x"
         component will be used to form each variable so its format is important
         """
-        # comp1 and comp2 are the variables names used in the solver
-        comp1 = obj.Object_1 + component
-        comp2 = obj.Object_2 + component
-        compPair = [comp1, comp2]
-        # for some reason obj.Components.append() does not modfy the list
-        # so copying it solves this problem
-        compList = obj.Components
-        # only check if comp1 is in the list since both comp1 and comp2 should
-        # always be in the list. If they are not the solver will fail anyways.
-        if compPair in compList:
+        propType = prop.split("_")[0]
+        propAxis = prop.split("_")[1]
+        # When loading the document the object properties are touched;
+        # however, not all the properties are loaded yet which gives 
+        # errors related to the object not having a property. So we
+        # do nothing if the valueProp has not being loaded yet.
+        # The information about the fix constraint value is already
+        # in the dictionary when loading the object.
+        if obj.Components[propType][propAxis]["enable"]:
             if not getattr(obj, prop):
-                compList.remove(compPair)
+                obj.Components[propType][propAxis]["enable"] = False
         else:
             if getattr(obj, prop):
-                compList.append(compPair)
-
-        obj.Components = compList
+                obj.Components[propType][propAxis]["enable"] = True
 
 
 Gui.addCommand("Asm4_EqualityConstraint", EqualityConstraintCmd())

@@ -44,73 +44,90 @@ class FixPanel:
         # Components is where all the data about which component
         # of the placement is being constrained and its value
         components = {
-            "Base_x": {
-                "value": 0,
-                "enable": False,
-                "objName": objName + ".Base.x",
-                "refName": refName + ".Base.x",
+            "Base": {
+                "x": {
+                    "value": 0,
+                    "enable": False,
+                    "objName": objName + ".Base.x",
+                    "refName": refName + ".Base.x",
+                },
+                "y": {
+                    "value": 0,
+                    "enable": False,
+                    "objName": objName + ".Base.y",
+                    "refName": refName + ".Base.y",
+                },
+                "z": {
+                    "value": 0,
+                    "enable": False,
+                    "objName": objName + ".Base.z",
+                    "refName": refName + ".Base.z",
+                },
+
             },
-            "Base_y": {
-                "value": 0,
-                "enable": False,
-                "objName": objName + ".Base.y",
-                "refName": refName + ".Base.y",
+            "Rotation": {
+                "x": {
+                    "value": 0,
+                    "enable": False,
+                    "objName": objName + ".Rotation.x",
+                    "refName": refName + ".Rotation.x",
+                },
+                "y": {
+                    "value": 0,
+                    "enable": False,
+                    "objName": objName + ".Rotation.y",
+                    "refName": refName + ".Rotation.y",
+                },
+                "z": {
+                    "value": 0,
+                    "enable": False,
+                    "objName": objName + ".Rotation.z",
+                    "refName": refName + ".Rotation.z",
+                },
             },
-            "Base_z": {
-                "value": 0,
-                "enable": False,
-                "objName": objName + ".Base.z",
-                "refName": refName + ".Base.z",
-            },
-            "Rotation_x": {
-                "value": 0,
-                "enable": False,
-                "objName": objName + ".Rotation.x",
-                "refName": refName + ".Rotation.x",
-            },
-            "Rotation_y": {
-                "value": 0,
-                "enable": False,
-                "objName": objName + ".Rotation.y",
-                "refName": refName + ".Rotation.y",
-            },
-            "Rotation_z": {
-                "value": 0,
-                "enable": False,
-                "objName": objName + ".Rotation.z",
-                "refName": refName + ".Rotation.z",
-            }
         }
         if self.form.xCheck.isChecked():
             # Fix x coordinate of object
             value = qty(self.form.xVal.text()).Value
-            components["Base_x"]["value"] = value
-            components["Base_x"]["enable"] = True
+#            components["Base_x"]["value"] = value
+#            components["Base_x"]["enable"] = True
+            components["Base"]["x"]["value"] = value
+            components["Base"]["x"]["enable"] = True
         if self.form.yCheck.isChecked():
             # Fix y coordinate of object
             value = qty(self.form.yVal.text()).Value
-            components["Base_y"]["value"] = value
-            components["Base_y"]["enable"] = True
+#            components["Base_y"]["value"] = value
+#            components["Base_y"]["enable"] = True
+            components["Base"]["y"]["value"] = value
+            components["Base"]["y"]["enable"] = True
         if self.form.zCheck.isChecked():
             # Fix z coordinate of object
             value = qty(self.form.zVal.text()).Value
-            components["Base_z"]["value"] = value
-            components["Base_z"]["enable"] = True
+#            components["Base_z"]["value"] = value
+#            components["Base_z"]["enable"] = True
+            components["Base"]["z"]["value"] = value
+            components["Base"]["z"]["enable"] = True
         if self.form.xrotCheck.isChecked():
             # fix rotation about x axis
             value = qty(self.form.xrotVal.text()).Value
-            components["Rotation_x"]["value"] = value
-            components["Rotation_x"]["enable"] = True
+#            components["Rotation_x"]["value"] = value
+#            components["Rotation_x"]["enable"] = True
+            components["Rotation"]["x"]["value"] = value
+            components["Rotation"]["x"]["enable"] = True
         if self.form.yrotCheck.isChecked():
             # fix rotation about y axis
             value = qty(self.form.yrotVal.text()).Value
-            components["Rotation_y"]["value"] = value
-            components["Rotation_y"]["enable"] = True
+#            components["Rotation_y"]["value"] = value
+#            components["Rotation_y"]["enable"] = True
+            components["Rotation"]["y"]["value"] = value
+            components["Rotation"]["y"]["enable"] = True
         if self.form.zrotCheck.isChecked():
             # Fix rotation about z axis
             value = qty(self.form.zrotVal.text()).Value
-            components["Rotation_z"]["value"] = value
-            components["Rotation_z"]["enable"] = True
+#            components["Rotation_z"]["value"] = value
+#            components["Rotation_z"]["enable"] = True
+            components["Rotation"]["z"]["value"] = value
+            components["Rotation"]["z"]["enable"] = True
 
         newConstraint = App.ActiveDocument.addObject("App::FeaturePython", self.type)
         FixConstraint(newConstraint, objName, refName, self.type, components)
@@ -157,14 +174,16 @@ class FixConstraint():
         obj.addProperty("App::PropertyFloat", "Rotation_z_val", "Placement")
         obj.addProperty("App::PropertyPythonObject", "Components", "", "", 4)
         obj.Components = components
-        for component in components:
-            if not components[component]["enable"]:
-                continue
-            val = components[component]["value"]
-            # Name of the property to put the value
-            valueProp = component + "_val"
-            setattr(obj, valueProp, val)     # Set the fix value of this constraint
-            setattr(obj, component, True)    # Enable this constraint
+        for compType in components:
+            for compAxis in components[compType]:
+                if not components[compType][compAxis]["enable"]:
+                    continue
+                val = components[compType][compAxis]["value"]
+                # Name of the property to put the value
+                prop = compType + "_" + compAxis
+                valueProp = prop + "_val"
+                setattr(obj, valueProp, val)     # Set the fix value of this constraint
+                setattr(obj, prop, True)    # Enable this constraint
         App.ActiveDocument.Constraints.addObject(obj)
 
     def onChanged(self, obj, prop):
@@ -187,6 +206,8 @@ class FixConstraint():
         property is modified in the property editor.
         """
         valueProp = prop + "_val"
+        propType = prop.split("_")[0]
+        propAxis = prop.split("_")[1]
         # When loading the document the object properties are touched;
         # however, not all the properties are loaded yet which gives 
         # errors related to the object not having a property. So we
@@ -196,13 +217,13 @@ class FixConstraint():
         if not hasattr(obj, valueProp):
             return
         val = getattr(obj, valueProp)
-        if obj.Components[prop]["enable"]:
+        if obj.Components[propType][propAxis]["enable"]:
             if not getattr(obj, prop):
-                obj.Components[prop]["enable"] = False
+                obj.Components[propType][propAxis]["enable"] = False
         else:
             if getattr(obj, prop):
-                obj.Components[prop]["enable"] = True
-        obj.Components[prop]["value"] = val
+                obj.Components[propType][propAxis]["enable"] = True
+        obj.Components[propType][propAxis]["value"] = val
 
 
 Gui.addCommand("Asm4_FixConstraint", FixConstraintCmd())
