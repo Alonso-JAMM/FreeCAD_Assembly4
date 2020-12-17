@@ -105,7 +105,7 @@ class Lock:
         return x[self.a] - self.c
 
     @classmethod
-    def makeConstraint(cls, f, varData):  # f, xNames, xList):
+    def makeConstraint(cls, f, varData):
         for comp in f.Components:
             for axis in f.Components[comp]:
                 if not f.Components[comp][axis]["enable"]:
@@ -128,10 +128,13 @@ class Lock:
                     elif component == "z":
                         xVal = App.ActiveDocument.getObject(f.Object) \
                                   .Placement.Rotation.toEuler()[0] * pi/180
+                    if xVal < 0:
+                        xVal = 2*pi + xVal
                 elif placement == "Base":
                     xVal = getattr(App.ActiveDocument.getObject(f.Object)
                                       .Placement.Base, component)
 
+                xVal = c
                 if varData["xList"][xIndex] is None:
                     varData["xList"][xIndex] = xVal
 
@@ -140,10 +143,14 @@ class Lock:
     @staticmethod
     def getVariables(f, varData):
         for axis in f.Components["Base"]:
+            if not f.Components["Base"][axis]["enable"]:
+                continue
             objName = f.Components["Base"][axis]["objName"]
             if objName not in varData["xNames"]:
                 varData["xNames"].append(objName)
         for axis in f.Components["Rotation"]:
+            if not f.Components["Rotation"][axis]["enable"]:
+                continue
             objName = f.Components["Rotation"][axis]["objName"]
             if objName not in varData["xNames"]:
                 varData["xNames"].append(objName)
@@ -163,9 +170,6 @@ class Fix:
         if self.fixType == "Base":
             return self.evalBase(x)
         # quaternion representing the fix rotation
-        fqrotxIndex = None
-        fqrotyIndex = None
-        fqrotzIndex = None
         fqrotx = None
         fqroty = None
         fqrotz = None
@@ -176,6 +180,38 @@ class Fix:
         oqrotyIndex = self.indexList["Rotation"]["y"]["Object"]
         rqrotzIndex = self.indexList["Rotation"]["z"]["Reference"]
         oqrotzIndex = self.indexList["Rotation"]["z"]["Object"]
+        oqxVal = x[oqrotxIndex]
+        oqyVal = x[oqrotyIndex]
+        oqzVal = x[oqrotzIndex]
+        rqxVal = x[rqrotxIndex]
+        rqyVal = x[rqrotyIndex]
+        rqzVal = x[rqrotzIndex]
+
+        oqx = HyperDualQuaternion(hdsin((oqxVal)/2),
+                                  0,
+                                  0,
+                                  hdcos((oqxVal)/2))
+        oqy = HyperDualQuaternion(0,
+                                  hdsin((oqyVal)/2),
+                                  0,
+                                  hdcos((oqyVal)/2))
+        oqz = HyperDualQuaternion(0,
+                                  0,
+                                  hdsin((oqzVal)/2),
+                                  hdcos((oqzVal)/2))
+        rqx = HyperDualQuaternion(hdsin((rqxVal)/2),
+                                  0,
+                                  0,
+                                  hdcos((rqxVal)/2))
+        rqy = HyperDualQuaternion(0,
+                                  hdsin((rqyVal)/2),
+                                  0,
+                                  hdcos((rqyVal)/2))
+        rqz = HyperDualQuaternion(0,
+                                  0,
+                                  hdsin((rqzVal)/2),
+                                  hdcos((rqzVal)/2))
+
         if self.indexList["Rotation"]["x"]["Enable"]:
             val = self.indexList["Rotation"]["x"]["FixVal"]
             fqrotx = HyperDualQuaternion(hdsin(val/2),
@@ -183,11 +219,7 @@ class Fix:
                                          0,
                                          hdcos(val/2))
         else:
-            fqrotxIndex = self.indexList["Rotation"]["x"]["Object"]
-            fqrotx = HyperDualQuaternion(hdsin(x[fqrotxIndex]/2),
-                                         0,
-                                         0,
-                                         hdcos(x[fqrotxIndex]/2))
+            fqrotx = oqx
         if self.indexList["Rotation"]["y"]["Enable"]:
             val = self.indexList["Rotation"]["y"]["FixVal"]
             fqroty = HyperDualQuaternion(0,
@@ -195,11 +227,7 @@ class Fix:
                                          0,
                                          hdcos(val/2))
         else:
-            fqrotyIndex = self.indexList["Rotation"]["y"]["Object"]
-            fqroty = HyperDualQuaternion(0,
-                                         hdsin(x[fqrotyIndex]/2),
-                                         0,
-                                         hdcos(x[fqrotyIndex]/2))
+            fqroty = oqy
         if self.indexList["Rotation"]["z"]["Enable"]:
             val = self.indexList["Rotation"]["z"]["FixVal"]
             fqrotz = HyperDualQuaternion(0,
@@ -207,36 +235,7 @@ class Fix:
                                          hdsin(val/2),
                                          hdcos(val/2))
         else:
-            fqrotzIndex = self.indexList["Rotation"]["z"]["Object"]
-            fqrotz = HyperDualQuaternion(0,
-                                         0,
-                                         hdsin(x[fqrotzIndex]/2),
-                                         hdcos(x[fqrotzIndex]/2))
-
-        rqx = HyperDualQuaternion(hdsin((x[rqrotxIndex])/2),
-                                  0,
-                                  0,
-                                  hdcos((x[rqrotxIndex])/2))
-        rqy = HyperDualQuaternion(0,
-                                  hdsin((x[rqrotyIndex])/2),
-                                  0,
-                                  hdcos((x[rqrotyIndex])/2))
-        rqz = HyperDualQuaternion(0,
-                                  0,
-                                  hdsin((x[rqrotzIndex])/2),
-                                  hdcos((x[rqrotzIndex])/2))
-        oqx = HyperDualQuaternion(hdsin(x[oqrotxIndex]/2),
-                                  0,
-                                  0,
-                                  hdcos(x[oqrotxIndex]/2))
-        oqy = HyperDualQuaternion(0,
-                                  hdsin(x[oqrotyIndex]/2),
-                                  0,
-                                  hdcos(x[oqrotyIndex]/2))
-        oqz = HyperDualQuaternion(0,
-                                  0,
-                                  hdsin(x[oqrotzIndex]/2),
-                                  hdcos(x[oqrotzIndex]/2))
+            fqrotz = oqz
         rq = rqz@rqy@rqx
         oq = oqz@oqy@oqx
         fqrot = fqrotz@fqroty@fqrotx
@@ -267,36 +266,43 @@ class Fix:
         rqrotyIndex = self.indexList["Rotation"]["y"]["Reference"]
         rqrotzIndex = self.indexList["Rotation"]["z"]["Reference"]
 
-        rqx = HyperDualQuaternion(hdsin((x[rqrotxIndex])/2),
+        px = x[pxIndex]
+        py = x[pyIndex]
+        pz = x[pzIndex]
+        rpx = x[rpxIndex]
+        rpy = x[rpyIndex]
+        rpz = x[rpzIndex]
+        rqrotx = x[rqrotxIndex]
+        rqroty = x[rqrotyIndex]
+        rqrotz = x[rqrotzIndex]
+        rqx = HyperDualQuaternion(hdsin((rqrotx)/2),
                                   0,
                                   0,
-                                  hdcos((x[rqrotxIndex])/2))
+                                  hdcos((rqrotx)/2))
         rqy = HyperDualQuaternion(0,
-                                  hdsin((x[rqrotyIndex])/2),
+                                  hdsin((rqroty)/2),
                                   0,
-                                  hdcos((x[rqrotyIndex])/2))
+                                  hdcos((rqroty)/2))
         rqz = HyperDualQuaternion(0,
                                   0,
-                                  hdsin((x[rqrotzIndex])/2),
-                                  hdcos((x[rqrotzIndex])/2))
+                                  hdsin((rqrotz)/2),
+                                  hdcos((rqrotz)/2))
 
         if self.indexList["Base"]["x"]["Enable"]:
             fqbasex = self.indexList["Base"]["x"]["FixVal"]
         else:
-            fqbasexIndex = self.indexList["Base"]["x"]["Object"]
-            fqbasex = x[fqbasexIndex]
+            fqbasex = px
         if self.indexList["Base"]["y"]["Enable"]:
             fqbasey = self.indexList["Base"]["y"]["FixVal"]
         else:
-            fqbaseyIndex = self.indexList["Base"]["y"]["Object"]
-            fqbasey = x[fqbaseyIndex]
+            fqbasey = py
         if self.indexList["Base"]["z"]["Enable"]:
             fqbasez = self.indexList["Base"]["z"]["FixVal"]
         else:
-            fqbasezIndex = self.indexList["Base"]["z"]["Object"]
-            fqbasez = x[fqbasezIndex]
-        p = HyperDualQuaternion(x[pxIndex], x[pyIndex], x[pzIndex], 0)
-        rp = HyperDualQuaternion(x[rpxIndex].real, x[rpyIndex].real, x[rpzIndex].real, 0)
+            fqbasez = py
+
+        p = HyperDualQuaternion(px, py, pz, 0)
+        rp = HyperDualQuaternion(rpx, rpy, rpz, 0)
         fqbase = HyperDualQuaternion(fqbasex, fqbasey, fqbasez, 0)
         refRot = rqz@rqy@rqx
 
@@ -341,6 +347,20 @@ class Fix:
                            .Placement.Base, axis)
             rVal = getattr(App.ActiveDocument.getObject(f.Reference)
                            .Placement.Base, axis)
+            # Get the rotation axis value, change this, it is ugly
+            ax = None
+            if axis == "x":
+                ax = 2
+            elif axis == "y":
+                ax = 1
+            elif axis == "z":
+                ax = 0
+            rRotVal = App.ActiveDocument.getObject(f.Reference) \
+                         .Placement.Rotation.toEuler()[ax] * pi/180
+
+            if rRotVal < 0:
+                rRotVal = 2*pi + rRotVal
+
             xIndex = varData["xNames"].index(xName)
             rIndex = varData["xNames"].index(rName)
             rRotIndex = varData["xNames"].index(rRotName)
@@ -350,12 +370,13 @@ class Fix:
             indices["Rotation"][axis]["Reference"] = rRotIndex
             indices["Base"][axis]["Enable"] = Axes[axis]["enable"]
             indices["Base"][axis]["FixVal"] = Axes[axis]["value"]
-            indices["Base"]["Reference"] = rName
 
             if varData["xList"][xIndex] is None:
                 varData["xList"][xIndex] = xVal
             if varData["xList"][rIndex] is None:
                 varData["xList"][rIndex] = rVal
+            if varData["xList"][rRotIndex] is None:
+                varData["xList"][rRotIndex] = rRotVal
 
         if (Axes["x"]["enable"] is False and Axes["y"]["enable"] is False
                 and Axes["z"]["enable"] is False):
