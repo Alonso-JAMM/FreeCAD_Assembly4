@@ -187,53 +187,53 @@ class Fix:
         rqyVal = x[rqrotyIndex]
         rqzVal = x[rqrotzIndex]
 
-        oqx = HyperDualQuaternion(hdsin((oqxVal)/2),
+        oqx = HyperDualQuaternion(hdsin((oqxVal)*0.5),
                                   0,
                                   0,
-                                  hdcos((oqxVal)/2))
+                                  hdcos((oqxVal)*0.5))
         oqy = HyperDualQuaternion(0,
-                                  hdsin((oqyVal)/2),
+                                  hdsin((oqyVal)*0.5),
                                   0,
-                                  hdcos((oqyVal)/2))
+                                  hdcos((oqyVal)*0.5))
         oqz = HyperDualQuaternion(0,
                                   0,
-                                  hdsin((oqzVal)/2),
-                                  hdcos((oqzVal)/2))
-        rqx = HyperDualQuaternion(hdsin((rqxVal)/2),
+                                  hdsin((oqzVal)*0.5),
+                                  hdcos((oqzVal)*0.5))
+        rqx = HyperDualQuaternion(hdsin((rqxVal)*0.5),
                                   0,
                                   0,
-                                  hdcos((rqxVal)/2))
+                                  hdcos((rqxVal)*0.5))
         rqy = HyperDualQuaternion(0,
-                                  hdsin((rqyVal)/2),
+                                  hdsin((rqyVal)*0.5),
                                   0,
-                                  hdcos((rqyVal)/2))
+                                  hdcos((rqyVal)*0.5))
         rqz = HyperDualQuaternion(0,
                                   0,
-                                  hdsin((rqzVal)/2),
-                                  hdcos((rqzVal)/2))
+                                  hdsin((rqzVal)*0.5),
+                                  hdcos((rqzVal)*0.5))
 
         if self.indexList["Rotation"]["x"]["Enable"]:
             val = self.indexList["Rotation"]["x"]["FixVal"]
-            fqrotx = HyperDualQuaternion(hdsin(val/2),
+            fqrotx = HyperDualQuaternion(hdsin(val*0.5),
                                          0,
                                          0,
-                                         hdcos(val/2))
+                                         hdcos(val*0.5))
         else:
             fqrotx = oqx
         if self.indexList["Rotation"]["y"]["Enable"]:
             val = self.indexList["Rotation"]["y"]["FixVal"]
             fqroty = HyperDualQuaternion(0,
-                                         hdsin(val/2),
+                                         hdsin(val*0.5),
                                          0,
-                                         hdcos(val/2))
+                                         hdcos(val*0.5))
         else:
             fqroty = oqy
         if self.indexList["Rotation"]["z"]["Enable"]:
             val = self.indexList["Rotation"]["z"]["FixVal"]
             fqrotz = HyperDualQuaternion(0,
                                          0,
-                                         hdsin(val/2),
-                                         hdcos(val/2))
+                                         hdsin(val*0.5),
+                                         hdcos(val*0.5))
         else:
             fqrotz = oqz
         rq = rqz@rqy@rqx
@@ -275,18 +275,18 @@ class Fix:
         rqrotx = x[rqrotxIndex]
         rqroty = x[rqrotyIndex]
         rqrotz = x[rqrotzIndex]
-        rqx = HyperDualQuaternion(hdsin((rqrotx)/2),
+        rqx = HyperDualQuaternion(hdsin((rqrotx)*0.5),
                                   0,
                                   0,
-                                  hdcos((rqrotx)/2))
+                                  hdcos((rqrotx)*0.5))
         rqy = HyperDualQuaternion(0,
-                                  hdsin((rqroty)/2),
+                                  hdsin((rqroty)*0.5),
                                   0,
-                                  hdcos((rqroty)/2))
+                                  hdcos((rqroty)*0.5))
         rqz = HyperDualQuaternion(0,
                                   0,
-                                  hdsin((rqrotz)/2),
-                                  hdcos((rqrotz)/2))
+                                  hdsin((rqrotz)*0.5),
+                                  hdcos((rqrotz)*0.5))
 
         if self.indexList["Base"]["x"]["Enable"]:
             fqbasex = self.indexList["Base"]["x"]["FixVal"]
