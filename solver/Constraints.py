@@ -5,140 +5,60 @@ from math import pi
 
 class Equality:
     """ Two variables have the same value """
-    def __init__(self, a, b):
-        # a and b are the positions of the variables to be set equal in the
-        # variable array
-        self.a = a
-        self.b = b
-        self.Ftype = "Equality"
-
-    def eval(self, x):
-        return x[self.a] - x[self.b]
-
-    @classmethod
-    def makeConstraint(cls, f, varData):
-        """
-        Looks for new variables to be added to the variable lists.
-        f: is a particular equality constraint between two datum objects. It
-        includes data about which objects are being constrained and which
-        parameters of their placements are being set equal.
-        x_names: is a list of the current variables already accounted. Note
-        that variables need to be unique so this list is needed in order to
-        avoid repeated variables in the lists
-        x_list: a list of the values of all the variables. The values are
-        either a real value or None. This method modifies x_list in place
-        (values of the variables are put on x_list in their corresponding
-        place)
-        returns: an Equality object created with data from f
-        """
-        for comp in f.Components:
-            for axis in f.Components[comp]:
-                if not f.Components[comp][axis]["enable"]:
-                    continue
-                x1Name = f.Components[comp][axis]["obj1Name"]
-                x2Name = f.Components[comp][axis]["obj2Name"]
-                x1Val = None
-                x2Val = None
-                x1Index = varData["xNames"].index(x1Name)
-                x2Index = varData["xNames"].index(x2Name)
-                component = x1Name.split(".")[2]
-                placement = x1Name.split(".")[1]
-
-                if placement == "Rotation":
-                    if component == "x":
-                        x1Val = App.ActiveDocument.getObject(f.Object_1) \
-                                    .Placement.Rotation.toEuler()[2] * pi/180
-                        x2Val = App.ActiveDocument.getObject(f.Object_2) \
-                                   .Placement.Rotation.toEuler()[2] * pi/180
-                    elif component == "y":
-                        x1Val = App.ActiveDocument.getObject(f.Object_1) \
-                                   .Placement.Rotation.toEuler()[1] * pi/180
-                        x2Val = App.ActiveDocument.getObject(f.Object_2) \
-                                   .Placement.Rotation.toEuler()[1] * pi/180
-                    elif component == "z":
-                        x1Val = App.ActiveDocument.getObject(f.Object_1) \
-                                   .Placement.Rotation.toEuler()[0] * pi/180
-                        x2Val = App.ActiveDocument.getObject(f.Object_2) \
-                                   .Placement.Rotation.toEuler()[0] * pi/180
-                elif placement == "Base":
-                    x1Val = getattr(App.ActiveDocument.getObject(f.Object_1)
-                                       .Placement.Base, component)
-                    x2Val = getattr(App.ActiveDocument.getObject(f.Object_2)
-                                       .Placement.Base, component)
-
-                # Modify x_list in place
-                if varData["xList"][x1Index] is None:
-                    varData["xList"][x1Index] = x1Val
-                if varData["xList"][x2Index] is None:
-                    varData["xList"][x2Index] = x2Val
-
-                varData["fList"].append(cls(x1Index, x2Index))
-
     @staticmethod
     def getVariables(f, varData):
         """ Adds unique variables names to the x names list for the solver
         """
         for axis in f.Components["Base"]:
+            if not f.Components["Base"][axis]["enable"]:
+                continue
             objName = f.Components["Base"][axis]["obj1Name"]
             refName = f.Components["Base"][axis]["obj2Name"]
-            if objName not in varData["xNames"]:
-                varData["xNames"].append(objName)
-            if refName not in varData["xNames"]:
-                varData["xNames"].append(refName)
+            if objName not in varData["variables"]:
+                varData["variables"][objName] = Variable()
+                varData["variables"][objName]["equal"] = refName
+            if refName not in varData["variables"]:
+                varData["variables"][refName] = Variable()
         for axis in f.Components["Rotation"]:
+            if not f.Components["Rotation"][axis]["enable"]:
+                continue
             objName = f.Components["Rotation"][axis]["obj1Name"]
             refName = f.Components["Rotation"][axis]["obj2Name"]
-            if objName not in varData["xNames"]:
-                varData["xNames"].append(objName)
-            if refName not in varData["xNames"]:
-                varData["xNames"].append(refName)
-
-
-class Lock:
-    """ Lock a variable"""
-    def __init__(self, a, c):
-        self.a = a  # variable to lock
-        self.c = c  # set value
-        self.Ftype = "Lock"
-
-    def eval(self, x):
-        return x[self.a] - self.c
-
-    @classmethod
-    def makeConstraint(cls, f, varData):
+            if objName not in varData["variables"]:
+                varData["variables"][objName] = Variable()
+                varData["variables"][objName]["equal"] = refName
+            if refName not in varData["variables"]:
+                varData["variables"][refName] = Variable()
         for comp in f.Components:
             for axis in f.Components[comp]:
                 if not f.Components[comp][axis]["enable"]:
                     continue
-                xName = f.Components[comp][axis]["objName"]
-                xVal = None
-                xIndex = varData["xNames"].index(xName)
-                component = xName.split(".")[2]
-                placement = xName.split(".")[1]
-                c = f.Components[comp][axis]["value"]
+                xName = f.Components[comp][axis]["obj1Name"]
+                rName = f.Components[comp][axis]["obj2Name"]
+                rVal = None
+                component = rName.split(".")[2]
+                placement = rName.split(".")[1]
 
                 if placement == "Rotation":
-                    c = c*pi/180
                     if component == "x":
-                        xVal = App.ActiveDocument.getObject(f.Object) \
+                        rVal = App.ActiveDocument.getObject(f.Object_2) \
                                   .Placement.Rotation.toEuler()[2] * pi/180
                     elif component == "y":
-                        xVal = App.ActiveDocument.getObject(f.Object) \
+                        rVal = App.ActiveDocument.getObject(f.Object_2) \
                                   .Placement.Rotation.toEuler()[1] * pi/180
                     elif component == "z":
-                        xVal = App.ActiveDocument.getObject(f.Object) \
+                        rVal = App.ActiveDocument.getObject(f.Object_2) \
                                   .Placement.Rotation.toEuler()[0] * pi/180
-                    if xVal < 0:
-                        xVal = 2*pi + xVal
                 elif placement == "Base":
-                    xVal = getattr(App.ActiveDocument.getObject(f.Object)
+                    rVal = getattr(App.ActiveDocument.getObject(f.Object_2)
                                       .Placement.Base, component)
 
-                xVal = c
-                if varData["xList"][xIndex] is None:
-                    varData["xList"][xIndex] = xVal
+                varData["variables"][xName]["currentValue"] = rVal
+                varData["variables"][rName]["currentValue"] = rVal
 
-                varData["fList"].append(cls(xIndex, c))
+
+class Lock:
+    """ Lock a variable"""
 
     @staticmethod
     def getVariables(f, varData):
@@ -146,25 +66,35 @@ class Lock:
             if not f.Components["Base"][axis]["enable"]:
                 continue
             objName = f.Components["Base"][axis]["objName"]
-            if objName not in varData["xNames"]:
-                varData["xNames"].append(objName)
+            if objName not in varData["variables"]:
+                varData["variables"][objName] = Variable()
+                varData["variables"][objName]["locked"] = True
         for axis in f.Components["Rotation"]:
             if not f.Components["Rotation"][axis]["enable"]:
                 continue
             objName = f.Components["Rotation"][axis]["objName"]
-            if objName not in varData["xNames"]:
-                varData["xNames"].append(objName)
+            if objName not in varData["variables"]:
+                varData["variables"][objName] = Variable()
+                varData["variables"][objName]["locked"] = True
+        for comp in f.Components:
+            for axis in f.Components[comp]:
+                if not f.Components[comp][axis]["enable"]:
+                    continue
+                xName = f.Components[comp][axis]["objName"]
+                c = f.Components[comp][axis]["value"]
+                varData["variables"][xName]["currentValue"] = c
 
 
 class Fix:
     """ A variable is fixed to a value """
-    def __init__(self, indexList, fixType):
+    def __init__(self, indexList, fixType, varData):
         # indexList contains the indeces of the variables needed to
         # create the placements of the object and the reference
         # fixType is the type of fix (Rotation or Base)
         self.Ftype = "Fix"
         self.indexList = indexList
         self.fixType = fixType
+        self.varData = varData
 
     def eval(self, x):
         if self.fixType == "Base":
@@ -174,70 +104,32 @@ class Fix:
         fqroty = None
         fqrotz = None
 
-        rqrotxIndex = self.indexList["Rotation"]["x"]["Reference"]
         oqrotxIndex = self.indexList["Rotation"]["x"]["Object"]
-        rqrotyIndex = self.indexList["Rotation"]["y"]["Reference"]
         oqrotyIndex = self.indexList["Rotation"]["y"]["Object"]
-        rqrotzIndex = self.indexList["Rotation"]["z"]["Reference"]
         oqrotzIndex = self.indexList["Rotation"]["z"]["Object"]
-        oqxVal = x[oqrotxIndex]
-        oqyVal = x[oqrotyIndex]
-        oqzVal = x[oqrotzIndex]
-        rqxVal = x[rqrotxIndex]
-        rqyVal = x[rqrotyIndex]
-        rqzVal = x[rqrotzIndex]
 
-        oqx = HyperDualQuaternion(hdsin((oqxVal)*0.5),
-                                  0,
-                                  0,
-                                  hdcos((oqxVal)*0.5))
-        oqy = HyperDualQuaternion(0,
-                                  hdsin((oqyVal)*0.5),
-                                  0,
-                                  hdcos((oqyVal)*0.5))
-        oqz = HyperDualQuaternion(0,
-                                  0,
-                                  hdsin((oqzVal)*0.5),
-                                  hdcos((oqzVal)*0.5))
-        rqx = HyperDualQuaternion(hdsin((rqxVal)*0.5),
-                                  0,
-                                  0,
-                                  hdcos((rqxVal)*0.5))
-        rqy = HyperDualQuaternion(0,
-                                  hdsin((rqyVal)*0.5),
-                                  0,
-                                  hdcos((rqyVal)*0.5))
-        rqz = HyperDualQuaternion(0,
-                                  0,
-                                  hdsin((rqzVal)*0.5),
-                                  hdcos((rqzVal)*0.5))
+        # we don't care about the axis, just the rotation
+        rqIndex = self.indexList["Rotation"]["x"]["Reference"][:-2]
+        oqIndex = self.indexList["Rotation"]["x"]["Object"][:-2]
+
+        oqx = self.varData["variables"][oqrotxIndex]["q"]
+        oqy = self.varData["variables"][oqrotyIndex]["q"]
+        oqz = self.varData["variables"][oqrotzIndex]["q"]
 
         if self.indexList["Rotation"]["x"]["Enable"]:
-            val = self.indexList["Rotation"]["x"]["FixVal"]
-            fqrotx = HyperDualQuaternion(hdsin(val*0.5),
-                                         0,
-                                         0,
-                                         hdcos(val*0.5))
+            fqrotx = self.indexList["Rotation"]["x"]["FixVal"]
         else:
             fqrotx = oqx
         if self.indexList["Rotation"]["y"]["Enable"]:
-            val = self.indexList["Rotation"]["y"]["FixVal"]
-            fqroty = HyperDualQuaternion(0,
-                                         hdsin(val*0.5),
-                                         0,
-                                         hdcos(val*0.5))
+            fqroty = self.indexList["Rotation"]["y"]["FixVal"]
         else:
             fqroty = oqy
         if self.indexList["Rotation"]["z"]["Enable"]:
-            val = self.indexList["Rotation"]["z"]["FixVal"]
-            fqrotz = HyperDualQuaternion(0,
-                                         0,
-                                         hdsin(val*0.5),
-                                         hdcos(val*0.5))
+            fqrotz = self.indexList["Rotation"]["z"]["FixVal"]
         else:
             fqrotz = oqz
-        rq = rqz@rqy@rqx
-        oq = oqz@oqy@oqx
+        rq = self.varData["placements"][rqIndex]
+        oq = self.varData["placements"][oqIndex]
         fqrot = fqrotz@fqroty@fqrotx
         if self.fixType == "Base":
             baseResult = self.evalBase(x)
@@ -258,35 +150,16 @@ class Fix:
         pxIndex = self.indexList["Base"]["x"]["Object"]
         pyIndex = self.indexList["Base"]["y"]["Object"]
         pzIndex = self.indexList["Base"]["z"]["Object"]
-        rpxIndex = self.indexList["Base"]["x"]["Reference"]
-        rpyIndex = self.indexList["Base"]["y"]["Reference"]
-        rpzIndex = self.indexList["Base"]["z"]["Reference"]
 
-        rqrotxIndex = self.indexList["Rotation"]["x"]["Reference"]
-        rqrotyIndex = self.indexList["Rotation"]["y"]["Reference"]
-        rqrotzIndex = self.indexList["Rotation"]["z"]["Reference"]
+        # We don't care about the axis, just the overall rotation
+        rqIndex = self.indexList["Rotation"]["x"]["Reference"][:-2]
 
-        px = x[pxIndex]
-        py = x[pyIndex]
-        pz = x[pzIndex]
-        rpx = x[rpxIndex]
-        rpy = x[rpyIndex]
-        rpz = x[rpzIndex]
-        rqrotx = x[rqrotxIndex]
-        rqroty = x[rqrotyIndex]
-        rqrotz = x[rqrotzIndex]
-        rqx = HyperDualQuaternion(hdsin((rqrotx)*0.5),
-                                  0,
-                                  0,
-                                  hdcos((rqrotx)*0.5))
-        rqy = HyperDualQuaternion(0,
-                                  hdsin((rqroty)*0.5),
-                                  0,
-                                  hdcos((rqroty)*0.5))
-        rqz = HyperDualQuaternion(0,
-                                  0,
-                                  hdsin((rqrotz)*0.5),
-                                  hdcos((rqrotz)*0.5))
+        # we only care about the overall base placement
+        pIndex = self.indexList["Base"]["x"]["Object"][:-2]
+        rpIndex = self.indexList["Base"]["x"]["Reference"][:-2]
+        px = self.varData["variables"][pxIndex]["value"]
+        py = self.varData["variables"][pyIndex]["value"]
+        pz = self.varData["variables"][pzIndex]["value"]
 
         if self.indexList["Base"]["x"]["Enable"]:
             fqbasex = self.indexList["Base"]["x"]["FixVal"]
@@ -299,25 +172,38 @@ class Fix:
         if self.indexList["Base"]["z"]["Enable"]:
             fqbasez = self.indexList["Base"]["z"]["FixVal"]
         else:
-            fqbasez = py
+            fqbasez = pz
 
-        p = HyperDualQuaternion(px, py, pz, 0)
-        rp = HyperDualQuaternion(rpx, rpy, rpz, 0)
+        p = self.varData["placements"][pIndex]
+        rp = self.varData["placements"][rpIndex]
         fqbase = HyperDualQuaternion(fqbasex, fqbasey, fqbasez, 0)
-        refRot = rqz@rqy@rqx
+        refRot = self.varData["placements"][rqIndex]
 
-        baseEval = refRot**-1@(p-rp)@refRot - fqbase
+        # https://fgiesen.wordpress.com/2019/02/09/rotating-a-single-vector-using-a-quaternion/
+        q = refRot**-1
+        v = p - rp
+        t = HyperDualQuaternion(2*(q.q1*v.q2 - q.q2*v.q1),
+                                2*(q.q2*v.q0 - q.q0*v.q2),
+                                2*(q.q0*v.q1 - q.q1*v.q0),
+                                0)
+        t2 = HyperDualQuaternion(q.q1*t.q2 - q.q2*t.q1,
+                                 q.q2*t.q0 - q.q0*t.q2,
+                                 q.q0*t.q1 - q.q1*t.q0,
+                                 0)
+        t3 = HyperDualQuaternion(t.q0*q.q3,
+                                 t.q1*q.q3,
+                                 t.q2*q.q3,
+                                 0)
+        baseEval = v + t3 + t2 - fqbase
         # If an axis is disabled, then we don't care about the value of that
         # axis.
-        result = baseEval.q3**2
-
+        result = 0
         if self.indexList["Base"]["x"]["Enable"]:
             result += baseEval.q0**2
         if self.indexList["Base"]["y"]["Enable"]:
             result += baseEval.q1**2
         if self.indexList["Base"]["z"]["Enable"]:
             result += baseEval.q2**2
-
         return result
 
     def evalRotation(self):
@@ -338,6 +224,10 @@ class Fix:
         # Stores the indices of the variables used to construct the
         # placements of the object and the reference
         indices = IndexList()
+
+        if (Axes["x"]["enable"] is False and Axes["y"]["enable"] is False
+                and Axes["z"]["enable"] is False):
+            return
 
         for axis in Axes:
             xName = Axes[axis]["objName"]
@@ -361,28 +251,30 @@ class Fix:
             if rRotVal < 0:
                 rRotVal = 2*pi + rRotVal
 
-            xIndex = varData["xNames"].index(xName)
-            rIndex = varData["xNames"].index(rName)
-            rRotIndex = varData["xNames"].index(rRotName)
+            xIndex = varData["variables"][xName]["index"]
+            rIndex = varData["variables"][rName]["index"]
+            rRotIndex = varData["variables"][rRotName]["index"]
 
-            indices["Base"][axis]["Object"] = xIndex
-            indices["Base"][axis]["Reference"] = rIndex
-            indices["Rotation"][axis]["Reference"] = rRotIndex
+            indices["Base"][axis]["Object"] = xName
+            indices["Base"][axis]["Reference"] = rName
+            indices["Rotation"][axis]["Reference"] = rRotName
             indices["Base"][axis]["Enable"] = Axes[axis]["enable"]
             indices["Base"][axis]["FixVal"] = Axes[axis]["value"]
 
-            if varData["xList"][xIndex] is None:
-                varData["xList"][xIndex] = xVal
-            if varData["xList"][rIndex] is None:
-                varData["xList"][rIndex] = rVal
-            if varData["xList"][rRotIndex] is None:
-                varData["xList"][rRotIndex] = rRotVal
+            if xIndex is not None:
+                if varData["xList"][xIndex] is None:
+                    varData["xList"][xIndex] = xVal
+                    varData["variables"][xName]["currentValue"] = xVal
+            if rIndex is not None:
+                if varData["xList"][rIndex] is None:
+                    varData["xList"][rIndex] = rVal
+                    varData["variables"][rName]["currentValue"] = rVal
+            if rRotIndex is not None:
+                if varData["xList"][rRotIndex] is None:
+                    varData["xList"][rRotIndex] = rRotVal
+                    varData["variables"][rRotName]["currentValue"] = rRotVal
 
-        if (Axes["x"]["enable"] is False and Axes["y"]["enable"] is False
-                and Axes["z"]["enable"] is False):
-            return
-
-        baseConstraint = cls(indices, "Base")
+        baseConstraint = cls(indices, "Base", varData)
         varData["fList"].append(baseConstraint)
 
     @classmethod
@@ -401,34 +293,53 @@ class Fix:
         # rotations, the tree axes are not indenpendent.
         indices = IndexList()
 
+        if (Axes["x"]["enable"] is False and Axes["y"]["enable"] is False
+                and Axes["z"]["enable"] is False):
+            return
+
         for axis in Axes:
             xName = Axes[axis]["objName"]
             rName = Axes[axis]["refName"]
-            xIndex = varData["xNames"].index(xName)
-            rIndex = varData["xNames"].index(rName)
+            xIndex = varData["variables"][xName]["index"]
+            rIndex = varData["variables"][rName]["index"]
             rVal = None
             xVal = None
+
+            fixAngle = Axes[axis]["value"]*pi/180
+            fixVal = None
 
             if axis == "x":
                 xVal = App.ActiveDocument.getObject(f.Object) \
                           .Placement.Rotation.toEuler()[2] * pi/180
                 rVal = App.ActiveDocument.getObject(f.Reference) \
                           .Placement.Rotation.toEuler()[2] * pi/180
+                fixVal = HyperDualQuaternion(hdsin(fixAngle*0.5),
+                                             0,
+                                             0,
+                                             hdcos(fixAngle*0.5))
             elif axis == "y":
                 xVal = App.ActiveDocument.getObject(f.Object) \
                           .Placement.Rotation.toEuler()[1] * pi/180
                 rVal = App.ActiveDocument.getObject(f.Reference) \
                           .Placement.Rotation.toEuler()[1] * pi/180
+                fixVal = HyperDualQuaternion(0,
+                                             hdsin(fixAngle*0.5),
+                                             0,
+                                             hdcos(fixAngle*0.5))
             elif axis == "z":
                 xVal = App.ActiveDocument.getObject(f.Object) \
                           .Placement.Rotation.toEuler()[0] * pi/180
                 rVal = App.ActiveDocument.getObject(f.Reference) \
                           .Placement.Rotation.toEuler()[0] * pi/180
+                fixVal = HyperDualQuaternion(0,
+                                             0,
+                                             hdsin(fixAngle*0.5),
+                                             hdcos(fixAngle*0.5))
 
-            indices["Rotation"][axis]["Object"] = xIndex
-            indices["Rotation"][axis]["Reference"] = rIndex
+            indices["Rotation"][axis]["Object"] = xName
+            indices["Rotation"][axis]["Reference"] = rName
             indices["Rotation"][axis]["Enable"] = Axes[axis]["enable"]
-            indices["Rotation"][axis]["FixVal"] = Axes[axis]["value"]*pi/180
+            indices["Rotation"][axis]["FixVal"] = fixVal
 
             # FreeCAD returns negative angles when they are larger than 180 degrees
             if rVal < 0:
@@ -436,16 +347,16 @@ class Fix:
             if xVal < 0:
                 xVal = 2*pi + xVal
 
-            if varData["xList"][xIndex] is None:
-                varData["xList"][xIndex] = xVal
-            if varData["xList"][rIndex] is None:
-                varData["xList"][rIndex] = rVal
+            if xIndex:
+                if varData["xList"][xIndex] is None:
+                    varData["xList"][xIndex] = xVal
+                    varData["variables"][xName]["currentValue"] = xVal
+            if rIndex:
+                if varData["xList"][rIndex] is None:
+                    varData["xList"][rIndex] = rVal
+                    varData["variables"][rName]["currentValue"] = rVal
 
-        if (Axes["x"]["enable"] is False and Axes["y"]["enable"] is False
-                and Axes["z"]["enable"] is False):
-            return
-
-        rotationConstraint = cls(indices, "Rotation")
+        rotationConstraint = cls(indices, "Rotation", varData)
         varData["fList"].append(rotationConstraint)
 
     @staticmethod
@@ -454,20 +365,77 @@ class Fix:
         f: a particular fix constraint
         varData: data of the variables used by the constraints
         """
+        objBase = f.Object + ".Base"
+        refBase = f.Reference + ".Base"
+        refRotation = f.Reference + ".Rotation"
+        if objBase not in varData["placements"]:
+            varData["placements"][objBase] = None
+        if refBase not in varData["placements"]:
+            varData["placements"][refBase] = None
+        if refRotation not in varData["placements"]:
+            varData["placements"][refRotation] = None
         for axis in f.Components["Base"]:
             objName = f.Components["Base"][axis]["objName"]
             refName = f.Components["Base"][axis]["refName"]
-            if objName not in varData["xNames"]:
-                varData["xNames"].append(objName)
-            if refName not in varData["xNames"]:
-                varData["xNames"].append(refName)
+            refRotName = f.Components["Rotation"][axis]["refName"]
+            # Creating the variables objects
+            if objName not in varData["variables"]:
+                varData["variables"][objName] = Variable()
+            if refName not in varData["variables"]:
+                varData["variables"][refName] = Variable()
+            if refRotName not in varData["variables"]:
+                varData["variables"][refRotName] = Variable()
+
+        Axes = f.Components["Rotation"]
+        # There are some situations in which the rotation of the object
+        # (not the reference) is not needed. Like in base fix constraint
+        if (Axes["x"]["enable"] is False and Axes["y"]["enable"] is False
+                and Axes["x"]["enable"] is False):
+            return
+        objRotation = f.Object + ".Rotation"
+        if objRotation not in varData["placements"]:
+            varData["placements"][objRotation] = None
         for axis in f.Components["Rotation"]:
             objName = f.Components["Rotation"][axis]["objName"]
             refName = f.Components["Rotation"][axis]["refName"]
-            if objName not in varData["xNames"]:
-                varData["xNames"].append(objName)
-            if refName not in varData["xNames"]:
-                varData["xNames"].append(refName)
+            # Creating the variables objects
+            if objName not in varData["variables"]:
+                varData["variables"][objName] = Variable()
+            if refName not in varData["variables"]:
+                varData["variables"][refName] = Variable()
+
+
+class Variable(dict):
+    """ Stores the information about the variables used in the assembly.
+    Variable objects are stored in the varData dictionary. Note that the
+    name of the variable will be the key of the variable object in the
+    varData dictionary.
+    """
+    def __init__(self):
+        super().__init__()
+        # Stores the index corresponding to the variable position inside the
+        # scipy solver array
+        self["index"] = None
+        # Indicates whether this variable is locked (a lock constraint is
+        # applied to this variable)
+        self["locked"] = False
+        # A hyperdual or a float depending on whether the variable is locked
+        # or not. If this is a hyperdual value, then it should be exactly the
+        # same object than the corresponding hyperdual in self.x inside the
+        # solver object
+        self["value"] = None
+        # currentValue stores the value of the object at the beginning of the
+        # solving procedure
+        self["currentValue"] = None
+        # The name of the reference variable we want this variable to have
+        # the exact same value or None.
+        # If we set this variable equal to another, then the value of this
+        # variable will be the same exact object than the other variable
+        self["equal"] = None
+        # quaternion representation of the rotation about the global axis
+        # corresponding to this variable (useful for angle variables which
+        # represent rotations about the global axes)
+        self["q"] = None
 
 
 class IndexList(dict):
